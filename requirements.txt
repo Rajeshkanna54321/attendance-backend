@@ -1,1 +1,10 @@
--r attendance-backend/requirements.txt
+Django>=6.1.2
+django-cors-headers>=4.9.0
+djangorestframework>=3.18.3
+google-auth>=2.61.0
+openpyxl>=3.1.5
+requests>=2.33.1
+djangorestframework-simplejwt>=5.3
+python-dotenv>=1.0.0
+gunicorn>=21.2.0
+whitenoise>=6.7.0
