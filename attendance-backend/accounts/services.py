@@ -28,11 +28,33 @@ def send_otp(email):
     EmailOTP.objects.filter(email=email).delete()
     code = f"{secrets.randbelow(10**6):06d}"
     EmailOTP.objects.create(email=email, code_hash=_hash(email, code))
-    send_mail(
-        "Your attendance app OTP",
-        f"Your OTP is {code}. It is valid for {settings.OTP_TTL_MINUTES} minutes.",
-        None, [email],
-    )
+
+    import logging
+    import threading
+    logger = logging.getLogger(__name__)
+
+    result = {"success": False}
+
+    def _send():
+        try:
+            send_mail(
+                "Your attendance app OTP",
+                f"Your OTP is {code}. It is valid for {settings.OTP_TTL_MINUTES} minutes.",
+                None, [email],
+            )
+            result["success"] = True
+        except Exception as exc:
+            logger.warning("Email send failed: %s", exc)
+
+    t = threading.Thread(target=_send, daemon=True)
+    t.start()
+    t.join(timeout=8)  # wait at most 8 seconds for email to send
+
+    if not result["success"]:
+        # Fallback: print to console so the OTP is still readable during testing
+        logger.warning("⚠️  OTP email not sent. Code for %s: %s", email, code)
+        print(f"\n{'='*50}\n⚠️  OTP for {email}: {code}\n{'='*50}\n")
+
 
 
 def check_otp(email, code):

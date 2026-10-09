@@ -25,19 +25,27 @@ def tokens_for(user, device_id):
     return {"access": str(refresh.access_token), "refresh": str(refresh), "user": UserSerializer(user).data}
 
 
-def complete_login(email, device_id, name=None, roll_number=None):
-    """Log in an existing user or sign up a new student, then bind the phone. All-or-nothing."""
+def complete_login(email, device_id, name=None, roll_number=None, role="student"):
+    """Log in an existing user or sign up a new user, then bind the phone. All-or-nothing."""
     email = email.strip().lower()
     with transaction.atomic():
         user = User.objects.filter(email=email).first()
         if user is None:
-            roll_number = (roll_number or "").strip().upper()
-            if not (name or "").strip() or not roll_number:
-                raise ValidationError({"detail": "name and roll_number are required to sign up.",
-                                       "code": "signup_details_required"})
-            if User.objects.filter(roll_number=roll_number).exists():
-                raise ValidationError({"detail": "This roll number is already registered.", "code": "roll_taken"})
-            user = User.objects.create_user(email=email, name=name.strip(), roll_number=roll_number, role="student")
+            name = (name or "").strip()
+            role = role if role in ["student", "teacher"] else "student"
+            if not name:
+                raise ValidationError({"detail": "name is required to sign up.", "code": "signup_details_required"})
+            
+            if role == "student":
+                roll_number = (roll_number or "").strip().upper()
+                if not roll_number:
+                    raise ValidationError({"detail": "roll_number is required for students.", "code": "signup_details_required"})
+                if User.objects.filter(roll_number=roll_number).exists():
+                    raise ValidationError({"detail": "This roll number is already registered.", "code": "roll_taken"})
+            else:
+                roll_number = None
+
+            user = User.objects.create_user(email=email, name=name, roll_number=roll_number, role=role)
         if not user.is_active:
             raise PermissionDenied("Account disabled.")
         services.bind_device(user, device_id)
@@ -63,7 +71,7 @@ class OTPVerifyView(APIView):
         email = serializers.EmailField().run_validation(d.get("email", "")).strip().lower()
         if not services.check_otp(email, str(d.get("otp", ""))):
             raise ValidationError({"detail": "Invalid or expired OTP.", "code": "bad_otp"})
-        return Response(complete_login(email, d.get("device_id"), d.get("name"), d.get("roll_number")))
+        return Response(complete_login(email, d.get("device_id"), d.get("name"), d.get("roll_number"), d.get("role", "student")))
 
 
 class GoogleLoginView(APIView):
@@ -76,7 +84,7 @@ class GoogleLoginView(APIView):
         except Exception:
             raise ValidationError({"detail": "Invalid Google token.", "code": "bad_google_token"})
         name = d.get("name") or info.get("name")
-        return Response(complete_login(info["email"], d.get("device_id"), name, d.get("roll_number")))
+        return Response(complete_login(info["email"], d.get("device_id"), name, d.get("roll_number"), d.get("role", "student")))
 
 
 class LogoutView(APIView):
