@@ -14,7 +14,13 @@ if not DEBUG and (not SECRET_KEY or len(SECRET_KEY) < 32):
     raise ImproperlyConfigured("Set DJANGO_SECRET_KEY to a random value of at least 32 characters when DEBUG=0.")
 SECRET_KEY = SECRET_KEY or "dev-only-insecure-key-for-local-development"
 ALLOWED_HOSTS = [h.strip() for h in os.getenv("ALLOWED_HOSTS", "*").split(",") if h.strip()]
+USE_X_FORWARDED_HOST = True
+USE_X_FORWARDED_PORT = True
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+CSRF_COOKIE_SECURE = not DEBUG
+SESSION_COOKIE_SECURE = not DEBUG
+CSRF_COOKIE_SAMESITE = "Lax"
+SESSION_COOKIE_SAMESITE = "Lax"
 CSRF_TRUSTED_ORIGINS = [
     "https://*.up.railway.app",
     "https://*.railway.app",
