@@ -36,11 +36,12 @@ def send_otp(email):
     result = {"success": False}
 
     def _send():
-        brevo_key = getattr(settings, "BREVO_API_KEY", "") or os.getenv("BREVO_API_KEY", "")
+        brevo_key = (getattr(settings, "BREVO_API_KEY", "") or os.getenv("BREVO_API_KEY", "")).strip().strip('"').strip("'")
         if brevo_key:
             try:
                 import requests
-                sender_email = getattr(settings, "DEFAULT_FROM_EMAIL", "") or getattr(settings, "EMAIL_HOST_USER", "") or "noreply@attendance.local"
+                sender_email = (getattr(settings, "DEFAULT_FROM_EMAIL", "") or getattr(settings, "EMAIL_HOST_USER", "") or "noreply@attendance.local").strip().strip('"').strip("'")
+                logger.info("Attempting Brevo API email with key length %d (prefix: %s...%s), sender: %s", len(brevo_key), brevo_key[:8], brevo_key[-4:] if len(brevo_key) > 4 else "", sender_email)
                 payload = {
                     "sender": {"name": "QR Attendance App", "email": sender_email},
                     "to": [{"email": email}],
