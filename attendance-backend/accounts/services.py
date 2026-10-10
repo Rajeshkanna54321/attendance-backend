@@ -36,6 +36,45 @@ def send_otp(email):
     result = {"success": False}
 
     def _send():
+        brevo_key = getattr(settings, "BREVO_API_KEY", "") or os.getenv("BREVO_API_KEY", "")
+        if brevo_key:
+            try:
+                import requests
+                sender_email = getattr(settings, "DEFAULT_FROM_EMAIL", "") or getattr(settings, "EMAIL_HOST_USER", "") or "noreply@attendance.local"
+                payload = {
+                    "sender": {"name": "QR Attendance App", "email": sender_email},
+                    "to": [{"email": email}],
+                    "subject": "Your Attendance App OTP Code",
+                    "htmlContent": (
+                        f"<div style='font-family:Arial,sans-serif;max-width:500px;margin:0 auto;padding:20px;border:1px solid #e2e8f0;border-radius:10px;'>"
+                        f"<h2 style='color:#1e293b;margin-bottom:10px;'>QR Attendance Verification</h2>"
+                        f"<p style='color:#475569;font-size:16px;'>Use the code below to complete your sign in:</p>"
+                        f"<div style='background-color:#f1f5f9;padding:15px;text-align:center;font-size:32px;font-weight:bold;letter-spacing:6px;color:#2563eb;border-radius:8px;margin:20px 0;'>{code}</div>"
+                        f"<p style='color:#64748b;font-size:14px;'>This OTP is valid for <strong>{settings.OTP_TTL_MINUTES} minutes</strong>. Please do not share this code with anyone.</p>"
+                        f"</div>"
+                    ),
+                    "textContent": f"Your attendance app OTP is {code}. It is valid for {settings.OTP_TTL_MINUTES} minutes.",
+                }
+                resp = requests.post(
+                    "https://api.brevo.com/v3/smtp/email",
+                    headers={
+                        "api-key": brevo_key,
+                        "accept": "application/json",
+                        "content-type": "application/json",
+                    },
+                    json=payload,
+                    timeout=8,
+                )
+                if resp.status_code in (200, 201, 202):
+                    result["success"] = True
+                    logger.info("OTP sent to %s via Brevo HTTPS API", email)
+                    return
+                else:
+                    logger.warning("Brevo API failed (%s): %s", resp.status_code, resp.text)
+            except Exception as b_exc:
+                logger.warning("Brevo request error: %s", b_exc)
+
+        # Fallback to standard Django send_mail (SMTP or Console)
         try:
             send_mail(
                 "Your attendance app OTP",
