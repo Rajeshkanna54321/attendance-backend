@@ -13,7 +13,15 @@ SECRET_KEY = os.getenv("DJANGO_SECRET_KEY")
 if not DEBUG and (not SECRET_KEY or len(SECRET_KEY) < 32):
     raise ImproperlyConfigured("Set DJANGO_SECRET_KEY to a random value of at least 32 characters when DEBUG=0.")
 SECRET_KEY = SECRET_KEY or "dev-only-insecure-key-for-local-development"
-ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "*").split(",")
+ALLOWED_HOSTS = [h.strip() for h in os.getenv("ALLOWED_HOSTS", "*").split(",") if h.strip()]
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+CSRF_TRUSTED_ORIGINS = [
+    "https://*.up.railway.app",
+    "https://*.railway.app",
+    "https://attendance-backend-production-a2cb.up.railway.app",
+    "http://localhost:8000",
+    "http://127.0.0.1:8000",
+]
 
 INSTALLED_APPS = [
     "django.contrib.admin", "django.contrib.auth", "django.contrib.contenttypes",
